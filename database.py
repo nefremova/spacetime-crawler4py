@@ -19,4 +19,11 @@ class Database:
             return
         
         c = self._conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS )
+        c.execute('''CREATE TABLE IF NOT EXISTS visited_urls (
+            domain_id INT NOT NULL,
+            subdomain VARCHAR[256] NOT NULL,
+            path VARCHAR[MAX] NOT NULL,
+            PRIMARY KEY (domain, subdomain, path)
+        )''')
+    
+    def 

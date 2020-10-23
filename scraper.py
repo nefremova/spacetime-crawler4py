@@ -3,7 +3,8 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
-    if not is_valid(url):
+    parsed_url = validate_url(url)
+    if not (parsed_url):
         return []
     links = extract_next_links(url, resp)
     print(links)
@@ -21,8 +22,15 @@ def extract_next_links(url, resp):
         urls.add(url.get('href'))
     return list(urls) 
 
-def is_valid(url):
+def validate_url(url):
     try:
+        # Append '//' to beginning of url in order for urlparse to detect netloc
+        split_url = url.split('//')
+        if len(split_url) > 2:
+            return False 
+        elif len(split_url) == 1:
+            url = '//' + url
+
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -30,7 +38,7 @@ def is_valid(url):
         domain_match = re.match(
             r"(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
-            + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", parsed.netloc.lower())
+            + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
         type_match = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -40,7 +48,9 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
-        return (domain_match and not type_match) 
+
+        if (domain_match and not type_match) return parsed else None 
+     
 
     except TypeError:
         print ("TypeError for ", parsed)
