@@ -3,17 +3,23 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
+    if not is_valid(url):
+        return []
     links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    print(links)
+    return [link for link in links if should_visit(link)]
+
+def should_visit(link):
+    pass
 
 def extract_next_links(url, resp):
     # Implementation requred.
     # print(resp.raw_response.text)
-    print("All URLs:")
+    urls = set()
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
-        print(url.get('href'))
-    return list()
+        urls.add(url.get('href'))
+    return list(urls) 
 
 def is_valid(url):
     try:
@@ -22,9 +28,9 @@ def is_valid(url):
             return False
 
         domain_match = re.match(
-            r"(today\.uci\.edu/department/information_computer_sciences/).*"
-            + r"|.*(\.ics\.uci\.edu/).*|.*(\.cs\.uci\.edu/).*"
-            + r"|.*(\.informatics\.uci\.edu/).*|.*(\.stat\.uci\.edu/).*", parsed.path.lower())
+            r"(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
+            + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
+            + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", parsed.netloc.lower())
         type_match = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
