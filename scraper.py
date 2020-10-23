@@ -3,8 +3,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
-    parsed_url = validate_url(url)
-    if not (parsed_url):
+    if not is_valid(url):
         return []
     links = extract_next_links(url, resp)
     print(links)
@@ -22,7 +21,7 @@ def extract_next_links(url, resp):
         urls.add(url.get('href'))
     return list(urls) 
 
-def validate_url(url):
+def is_valid(url):
     try:
         # Append '//' to beginning of url in order for urlparse to detect netloc
         split_url = url.split('//')
@@ -49,7 +48,7 @@ def validate_url(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
-        if (domain_match and not type_match) return parsed else None 
+        return (domain_match and not type_match) 
      
 
     except TypeError:
