@@ -12,7 +12,7 @@ def extract_next_links(url, resp):
     print("All URLs:")
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
-        print(url)
+        print(url.get('href'))
     return list()
 
 def is_valid(url):
@@ -20,7 +20,12 @@ def is_valid(url):
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
-        return not re.match(
+
+        domain_match = re.match(
+            r"(today\.uci\.edu/department/information_computer_sciences/).*"
+            + r"|.*(\.ics\.uci\.edu/).*|.*(\.cs\.uci\.edu/).*"
+            + r"|.*(\.informatics\.uci\.edu/).*|.*(\.stat\.uci\.edu/).*", parsed.path.lower())
+        type_match = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -29,6 +34,7 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        return (domain_match and not type_match) 
 
     except TypeError:
         print ("TypeError for ", parsed)
