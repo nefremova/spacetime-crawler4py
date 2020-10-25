@@ -5,7 +5,7 @@ class Database:
         self._db_name = db_name
     
     def connect(self):
-        self._conn = sqlite3.connect(self.db_name)
+        self._conn = sqlite3.connect(self._db_name)
     
     def close_connection(self):
         if self._conn:
@@ -23,7 +23,45 @@ class Database:
             domain_id INT NOT NULL,
             subdomain VARCHAR[256] NOT NULL,
             path VARCHAR[MAX] NOT NULL,
-            PRIMARY KEY (domain, subdomain, path)
+            PRIMARY KEY (domain_id, subdomain, path)
+        )''')
+
+        c.execute('''CREATE TABLE IF NOT EXISTS word_counts (
+            word_text VARCHAR[256] NOT NULL,
+            count INT NOT NULL,
+            PRIMARY KEY (word_text)
         )''')
     
-    def 
+    def clear_db(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute(' DELETE FROM visited_urls')
+        c.execute(' DELETE FROM word_counts')
+        self._conn.commit()
+
+    def insert_word_counts(self, freqs):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        try:
+            c = self._conn.cursor()
+            c.executemany(' INSERT INTO word_counts values(?, ?) ', list(freqs.items()))
+        except Exception as err:
+            print(err)
+
+        self._conn.commit()
+
+
+    def get_word_counts(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute(' SELECT * FROM word_counts ')
+        print(c.fetchall())
+
+        

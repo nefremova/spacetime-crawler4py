@@ -1,12 +1,37 @@
 import re
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from database import Database
+from collections import defaultdict 
+
+def compute_word_frequencies(text):
+    tokens = re.split("[^a-zA-Z0-9]+", text.lower()) #split on non-alphanumeric chars
+
+    freqs = defaultdict(int)
+    for token in tokens:
+        freqs[token] += 1
+
+    return freqs
 
 def scraper(url, resp):
     if not is_valid(url):
         return []
-    links = extract_next_links(url, resp)
+
+    db = Database('test.db')
+    db.connect()
+    db.create_db()
+    db.clear_db()
+
+    links, text = extract_next_links(url, resp)
     print(links)
+    freqs = compute_word_frequencies(text)
+    print(freqs)
+    input("Hit enter when ready: ")
+
+    db.insert_word_counts(freqs)
+    db.get_word_counts()
+    input("Hit enter when ready: ")
+    db.close_connection()
     return [link for link in links if should_visit(link)]
 
 def should_visit(link):
@@ -19,7 +44,10 @@ def extract_next_links(url, resp):
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         urls.add(url.get('href'))
-    return list(urls) 
+
+    text = soup.get_text(" ", strip = True)
+    
+    return list(urls), text
 
 def is_valid(url):
     try:
