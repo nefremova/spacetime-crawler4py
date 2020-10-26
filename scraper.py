@@ -9,32 +9,35 @@ def compute_word_frequencies(text):
 
     freqs = defaultdict(int)
     for token in tokens:
-        freqs[token] += 1
+        if token in freqs:
+            freqs[token] += 1
+        else:
+            freqs[token] = 1
 
     return freqs
 
-def scraper(url, resp):
+def scraper(url, resp, db):
     if not is_valid(url):
         return []
 
-    db = Database('test.db')
-    db.connect()
-    db.create_db()
-    db.clear_db()
-
+    # TEXT PARSING
     links, text = extract_next_links(url, resp)
     print(links)
     freqs = compute_word_frequencies(text)
     print(freqs)
     input("Hit enter when ready: ")
 
-    db.insert_word_counts(freqs)
+    db.upsert_word_counts(freqs)
     db.get_word_counts()
     input("Hit enter when ready: ")
-    db.close_connection()
-    return [link for link in links if should_visit(link)]
 
-def should_visit(link):
+    # RETURN NEW LINKS
+    #pass links into a method to check against the visited_cache (aka database)
+    #we do this in a batch and not one at a time in should_visit because it is more efficient to let sqlite do logic
+    #print the newly filtered list of links
+    return [link for link in links if should_visit(link)] #do any more last minute filtering on links one at a time
+
+def should_visit(link): 
     pass
 
 def extract_next_links(url, resp):
@@ -47,7 +50,7 @@ def extract_next_links(url, resp):
 
     text = soup.get_text(" ", strip = True)
     
-    return list(urls), text
+    return list(urls), text 
 
 def is_valid(url):
     try:
@@ -82,3 +85,7 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+def has_visited(url, visited_urls):
+    pass
+    
