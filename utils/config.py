@@ -18,3 +18,10 @@ class Config(object):
 
         self.cache_server = None
         self.db_name = config["SQLITE"]["DBNAME"].strip()
+        self.cache_capacity = int(config["LOCAL PROPERTIES"]["CACHE_CAPACITY"])
+        self.domain_mapping = {".ics.uci.edu": 1,
+                                ".cs.uci.ed": 2,
+                                ".informatics.uci.edu": 3,
+                                ".stat.uci.edu": 4,
+                                "today.uci.edu/department/information_computer_sciences": 5
+                                }

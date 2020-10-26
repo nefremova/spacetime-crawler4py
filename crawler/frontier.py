@@ -6,6 +6,9 @@ from queue import Queue, Empty
 
 from utils import get_logger, get_urlhash, normalize
 from scraper import is_valid
+from urllib.parse import urlparse
+import re
+from database import Database
 
 class Frontier(object):
     def __init__(self, config, restart):
@@ -27,6 +30,10 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.save = shelve.open(self.config.save_file)
         if restart:
+            db = Database(self.config.db_name)
+            db.connect()
+            db.clear_db()
+            db.close_connection()
             for url in self.config.seed_urls:
                 self.add_url(url)
         else:
@@ -64,6 +71,25 @@ class Frontier(object):
     
     def cache_insert(self, url):
          self.visited_cache.add(url)
+         if len(self.visited_cache) >= self.config.cache_capacity:
+             to_insert = []
+             for link in self.visited_cache:
+                split_domain = re.split(
+                    r"(.*//)(www\.?)?(.*)(today\.uci\.edu\/department\/information_computer_sciences"
+                    + r"|\.ics\.uci\.edu|\.cs\.uci\.edu"
+                    + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", link.lower(), maxsplit=5)
+
+                to_insert.append((self.config.domain_mapping[split_domain[4]], split_domain[3], split_domain[5]))
+             print("Inserting into DB:", to_insert)
+             try:
+                db = Database(self.config.db_name)
+                db.connect()
+                db.insert_urls(to_insert)
+                db.close_connection()
+             except Exception as e:
+                 print("DB ERROR:", e)
+             self.visited_cache.clear()
+             
          
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)

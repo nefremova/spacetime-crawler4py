@@ -1,5 +1,12 @@
 import sqlite3
-
+'''
+    DOMAIN IDS:
+        1: *.ics.uci.edu/*
+        2: *.cs.uci.edu/*
+        3: *.informatics.uci.edu/*
+        4: *.stat.uci.edu/*    
+        5: today.uci.edu/department/information_computer_sciences/*
+'''
 class Database:
     def __init__(self, db_name):
         self._db_name = db_name
@@ -38,8 +45,8 @@ class Database:
             return
         
         c = self._conn.cursor()
-        c.execute(''' DROP TABLE visited_urls;
-                    DROP TABLE word_counts;''')
+        c.execute(''' DROP TABLE IF EXISTS visited_urls''')
+        c.execute('''DROP TABLE IF EXISTS word_counts''')
         self._conn.commit()
 
     def upsert_word_counts(self, freqs):
@@ -48,10 +55,11 @@ class Database:
             return
         try:
             c = self._conn.cursor()
-            c.executemany(''' INSERT INTO word_counts(word_text, count)
-                                VALUES(?, ?) 
-                                ON CONFLICT(word_text)
-                                DO UPDATE SET count=count+excluded.count''', list(freqs.items()))
+            c.executemany(''' INSERT OR REPLACE INTO word_counts (word_text, count)
+                                VALUES (
+                                ?1,
+                                COALESCE((SELECT count + ?2 FROM word_counts WHERE word_text = ?1), ?2)
+                              );''', list(freqs.items()))
         except Exception as err:
             print(err)
 
