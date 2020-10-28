@@ -2,6 +2,7 @@ import os
 import logging
 from hashlib import sha256
 from urllib.parse import urlparse
+import re
 
 def get_logger(name, filename=None):
     logger = logging.getLogger(name)
@@ -33,3 +34,17 @@ def normalize(url):
     if url.endswith("/"):
         return url.rstrip("/")
     return url
+
+def split_url(url):
+    mapping = {
+        ".ics.uci.edu": 1,
+        ".cs.uci.ed": 2,
+        ".informatics.uci.edu": 3,
+        ".stat.uci.edu": 4,
+        "today.uci.edu/department/information_computer_sciences": 5
+    }
+    split_domain = re.split(
+                    r"(.*//)(www\.?)?(.*)(today\.uci\.edu\/department\/information_computer_sciences"
+                    + r"|\.ics\.uci\.edu|\.cs\.uci\.edu"
+                    + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", url.lower(), maxsplit=5)
+    return (mapping[split_domain[4]], split_domain[3], split_domain[5])

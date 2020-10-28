@@ -4,7 +4,7 @@ import shelve
 from threading import Thread, RLock
 from queue import Queue, Empty
 
-from utils import get_logger, get_urlhash, normalize
+from utils import get_logger, get_urlhash, normalize, split_url
 from scraper import is_valid
 from urllib.parse import urlparse
 import re
@@ -16,6 +16,7 @@ class Frontier(object):
         self.config = config
         self.to_be_downloaded = list()
         self.visited_cache = set()
+        self.fingerprint_cache = set()
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -69,17 +70,12 @@ class Frontier(object):
             self.save.sync()
             self.to_be_downloaded.append(url)
     
-    def cache_insert(self, url):
+    def insert_visited_cache(self, url):
          self.visited_cache.add(url)
          if len(self.visited_cache) >= self.config.cache_capacity:
              to_insert = []
              for link in self.visited_cache:
-                split_domain = re.split(
-                    r"(.*//)(www\.?)?(.*)(today\.uci\.edu\/department\/information_computer_sciences"
-                    + r"|\.ics\.uci\.edu|\.cs\.uci\.edu"
-                    + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", link.lower(), maxsplit=5)
-
-                to_insert.append((self.config.domain_mapping[split_domain[4]], split_domain[3], split_domain[5]))
+                to_insert.append(split_url(link))
              print("Inserting into DB:", to_insert)
              try:
                 db = Database(self.config.db_name)
@@ -89,7 +85,19 @@ class Frontier(object):
              except Exception as e:
                  print("DB ERROR:", e)
              self.visited_cache.clear()
-             
+    
+    def insert_fingerprint_cache(self, fingerprint):
+         self.fingerprint_cache.add(fingerprint)
+         if len(self.fingerprint_cache) >= self.config.cache_capacity:
+             print("Inserting into DB:", self.fingerprint_cache)
+             try:
+                db = Database(self.config.db_name)
+                db.connect()
+                db.insert_fingerprints(list(self.fingerprint_cache))
+                db.close_connection()
+             except Exception as e:
+                 print("DB ERROR:", e)
+             self.fingerprint_cache.clear()
          
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
@@ -100,4 +108,3 @@ class Frontier(object):
 
         self.save[urlhash] = (url, True)
         self.save.sync()
-        self.cache_insert(url)

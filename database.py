@@ -65,6 +65,9 @@ class Database:
 
         self._conn.commit()
 
+    def insert_fingerprints(self, fingerprints):
+        pass
+
     def insert_urls(self, urls):
         if not self._conn:
             print("No Database Connection")
@@ -77,6 +80,14 @@ class Database:
             print(err)
 
         self._conn.commit()
+
+    def url_exists(self, url):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        c = self._conn.cursor()
+        c.execute('''SELECT EXISTS (SELECT 1 FROM visited_urls WHERE domain_id = ? AND subdomain = ? AND path = ? ); ''', url)
+        return True if c.fetchall() else False
 
     def get_word_counts(self):
         if not self._conn:

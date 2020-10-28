@@ -25,9 +25,11 @@ class Worker(Thread):
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
-            scraped_urls = scraper(tbd_url, resp, self.db, self.frontier.visited_cache)
+            scraped_urls, fingerprint = scraper(tbd_url, resp, self.db, self.frontier.visited_cache, self.frontier.fingerprint_cache)
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
+            self.frontier.insert_visited_cache(tbd_url)
+            self.frontier.insert_fingerprint_cache(fingerprint)
             time.sleep(self.config.time_delay)
         self.db.close_connection()

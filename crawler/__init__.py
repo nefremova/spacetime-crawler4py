@@ -14,6 +14,7 @@ class Crawler(object):
         db = Database(config.db_name)
         db.connect()
         db.create_db()
+        print("CREATED DATABASE")
         db.close_connection()
 
     def start_async(self):

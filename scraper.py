@@ -4,62 +4,59 @@ from bs4 import BeautifulSoup
 from database import Database
 from collections import defaultdict 
 import hashlib
+from utils import split_url
 
-def scraper(url, resp, db, cache):
-    #TODO: behavior if bad status? should we just discard the url 
-    # or try requesting the url again?
-    if resp.status > 599:
+def scraper(url, resp, db, url_cache, fingerprint_cache):
+    #TODO: handle responses (2xx, 3xx)
+
+    if resp.status >= 400:
         print("Status " + str(resp.status) + ": " + resp.error)
         return []
-    elif resp.status > 200:
+    elif resp.status < 200:
         print("Status " + str(resp.status) + ": " + resp.raw_response)
-        return []	
+        return []
 
     # TEXT PARSING
-    links, text = extract_next_links(url, resp)
+    links, text = extract_next_links(url, resp) # get links + text
+    tokens = get_tokens(text)
+
+    # COMPUTE FINGERPRINT 
+    fingerprint = create_fingerprint(tokens)
+    if similar_page_exists(fingerprint, db, fingerprint_cache):
+        return []
+
+    # TODO: Clean up links (Remove fragments / Add base url to relative links)
     print(links)
-    freqs, tokens = compute_word_frequencies(text)
-    #print(freqs)
-    #create_fingerprint(tokens)
-    #input("Hit enter when ready: ")
+
+    # GET FREQUENCIES
+    freqs = compute_word_frequencies(tokens)
     remove_stop_words(freqs)
     print(freqs)
     input("Hit enter when ready: ")
 
     db.upsert_word_counts(freqs)
     #db.get_word_counts()
-    #input("Hit enter when ready: ")
-
+    
     # RETURN NEW LINKS
-    links = remove_visited_links(links, db, cache)
+    # Add current url & current fingerprint to sets (this change is only saved locally- will have to actually be added later)
+    url_cache.add(url)
+    fingerprint_cache.add(tuple(fingerprint))
+    links = remove_visited_links(links, db, url_cache)
+
     #we do this in a batch and not one at a time in should_visit because it is more efficient to let sqlite do logic
     #print the newly filtered list of links
-    return [link for link in links if should_visit(link)] #do any more last minute filtering on links one at a time
+    return ([link for link in links if should_visit(link)], tuple(fingerprint)) #do any more last minute filtering on links one at a time
+
+def similar_page_exists(fingerprint, db, cache):
+    pass
 
 def remove_visited_links(links, db, cache):
-    print("========cache=========")
+    print("========url_cache=========")
     print(cache)
-    unvisited_links = list(filter(lambda x: x not in cache, links))
-    visited_links = list(filter(lambda x: x in cache, links))
-
-    print("=======unvisited_links=========")
+    unvisited_links = list(filter(lambda x: x not in cache or not db.url_exists(split_url(x)), links))
+    print("========unvisited_links=========")
     print(unvisited_links)
-    print("=======visited_links==========")
-    print(visited_links)
-
-    db_links = db.get_visited_urls()
-    print("===========db links============")
-    print(db_links)
-    input("Hit enter when ready: ")
-
-    # TODO: ensure proper logic, db_links should be full urls
-    unvisited_links = list(filter(lambda x: x not in db_links, unvisited_links))
-    #print("unvisited_links")
-    #print(unvisited_links)
-    #input("Hit enter when ready: ")
-
-    #return unvisited_links
-    return []    #return empty list for now
+    return unvisited_links    #return empty list for now
 
 def create_fingerprint(words):
     #TODO: look into nltk, has ngram func
@@ -114,10 +111,10 @@ def remove_stop_words(freqs):
             #print("removing " + word + " from freqs")
             del freqs[word]
 
-def compute_word_frequencies(text):
-    #TODO: how do we want to handle contractions, most are stop words
-    tokens = re.split("[^a-zA-Z0-9']+", text.lower()) #split on non-alphanumeric chars
-	
+def get_tokens(text):
+    return re.split("[^a-zA-Z0-9']+", text.lower())
+
+def compute_word_frequencies(tokens):
     #freqs = defaultdict(int)
     freqs = dict()
     for token in tokens:
@@ -126,7 +123,7 @@ def compute_word_frequencies(text):
         else:
             freqs[token] = 1
 
-    return freqs, tokens    #return tokens for fingerprinting
+    return freqs
 
 def should_visit(link): 
     return is_valid(link)
