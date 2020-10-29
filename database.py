@@ -1,4 +1,5 @@
 import sqlite3
+
 '''
     DOMAIN IDS:
         1: *.ics.uci.edu/*
@@ -24,13 +25,19 @@ class Database:
         if not self._conn:
             print("No Database Connection")
             return
-        
+
+        c.execute('''CREATE TABLE IF NOT EXISTS fingerprints (
+            url_hash VARCHAR[128] NOT NULL,
+            fingerprint INT NOT NULL,
+            PRIMARY KEY (url_hash)
+        )''')
+       
         c = self._conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS visited_urls (
             domain_id INT NOT NULL,
             subdomain VARCHAR[256] NOT NULL,
             path VARCHAR[MAX] NOT NULL,
-            PRIMARY KEY (domain_id, subdomain, path)
+            PRIMARY KEY (domain_id, subdomain, path),
         )''')
 
         c.execute('''CREATE TABLE IF NOT EXISTS word_counts (
@@ -38,7 +45,8 @@ class Database:
             count INT NOT NULL,
             PRIMARY KEY (word_text)
         )''')
-    
+
+
     def clear_db(self):
         if not self._conn:
             print("No Database Connection")
@@ -47,6 +55,7 @@ class Database:
         c = self._conn.cursor()
         c.execute(''' DROP TABLE IF EXISTS visited_urls''')
         c.execute('''DROP TABLE IF EXISTS word_counts''')
+        c.execute('''DROP TABLE IF EXISTS fingerprints''')
         self._conn.commit()
 
     def upsert_word_counts(self, freqs):
@@ -66,7 +75,23 @@ class Database:
         self._conn.commit()
 
     def insert_fingerprints(self, fingerprints):
-        pass
+        if not self._conn:
+            print("No Database Connection")
+            return
+
+        try:
+            c = self._conn.cursor()
+
+            # check logic = fingerprint is list
+            # should be inserting each print in list w the 
+            # corresponding url_hash (the single key)
+            for url_hash, fingerprint in fingerprints.items():
+                c.executemany(''' INSERT OR IGNORE INTO fingerprints(url_hash, fingerprint)
+                                    VALUES(?, ?) ''', url_hash, fingerprint)
+        except Exception as err:
+            print(err)
+
+        self._conn.commit()
 
     def insert_urls(self, urls):
         if not self._conn:
@@ -108,3 +133,26 @@ class Database:
         #print(c.fetchall())
 
         return c.fetchall()
+
+    def get_url_fingerprint(self, url_hash):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute(''' SELECT fingerprint 
+                        FROM fingerprints 
+                        WHERE url_hash = ? ''', url_hash)
+
+        return c.fetchall()
+
+    def get_all_fingerprints(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute(' SELECT * FROM fingerprints GROUP BY url_hash')
+
+        return c.fetchall()
+

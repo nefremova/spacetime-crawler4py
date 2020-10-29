@@ -30,6 +30,6 @@ class Worker(Thread):
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
             self.frontier.insert_visited_cache(tbd_url)
-            self.frontier.insert_fingerprint_cache(fingerprint)
+            self.frontier.insert_fingerprint_cache(tbd_url, fingerprint)
             time.sleep(self.config.time_delay)
         self.db.close_connection()

@@ -4,7 +4,8 @@ from bs4 import BeautifulSoup
 from database import Database
 from collections import defaultdict 
 import hashlib
-from utils import split_url
+from utils import split_url, get_urlhash
+from nltk.util import ngrams
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
     #TODO: handle responses (2xx, 3xx)
@@ -22,7 +23,8 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
 
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
-    if similar_page_exists(fingerprint, db, fingerprint_cache):
+    url_hash = get_urlhash(url)
+    if similar_page_exists(url_hash, fingerprint, db, fingerprint_cache):
         return []
 
     # TODO: Clean up links (Remove fragments / Add base url to relative links)
@@ -40,15 +42,22 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # RETURN NEW LINKS
     # Add current url & current fingerprint to sets (this change is only saved locally- will have to actually be added later)
     url_cache.add(url)
-    fingerprint_cache.add(tuple(fingerprint))
+    fingerprint_cache[url_hash] = fingerprint
     links = remove_visited_links(links, db, url_cache)
 
     #we do this in a batch and not one at a time in should_visit because it is more efficient to let sqlite do logic
     #print the newly filtered list of links
-    return ([link for link in links if should_visit(link)], tuple(fingerprint)) #do any more last minute filtering on links one at a time
+    return ([link for link in links if should_visit(link)], fingerprint) #do any more last minute filtering on links one at a time
 
-def similar_page_exists(fingerprint, db, cache):
-    pass
+def similar_page_exists(url_hash, fingerprint, db, cache):
+    for print_list in cache.values():
+        if dup_check(fingerprint, print_list):
+            return True
+
+    prints = db.get_all_fingerprints()
+    #need to see format of prints before implementing check
+
+    return False
 
 def remove_visited_links(links, db, cache):
     print("========url_cache=========")
@@ -56,22 +65,24 @@ def remove_visited_links(links, db, cache):
     unvisited_links = list(filter(lambda x: x not in cache or not db.url_exists(split_url(x)), links))
     print("========unvisited_links=========")
     print(unvisited_links)
-    return unvisited_links    #return empty list for now
+    # return unvisited_links    
+    return []   #return empty list for now
 
 def create_fingerprint(words):
-    #TODO: look into nltk, has ngram func
-    #https://stackoverflow.com/questions/17531684/n-grams-in-python-four-five-six-grams
     n = 3    # going to create 3-grams
     hash_vals = []
 
-    for i in range(0, len(words) - n):
-        gram = words[i] + " " + words[i+1] + " " + words[i+2]
+    n_grams = ngrams(words, n)
+
+    for gram in n_grams:
+        gram = " ".join(gram)
         hex_hash = hashlib.sha256(gram.encode()).hexdigest()
         hex_hash = int(hex_hash, 16)
-        if hex_hash % n == 0:
+        if hex_hash % (n + 10) == 0:
             hash_vals.append(hex_hash)
 
-#    print(hash_vals)
+    # print(hash_vals)
+    # input("Hit enter when ready: ")
     return hash_vals
 
 def dup_check(prints1, prints2):
@@ -108,14 +119,12 @@ def remove_stop_words(freqs):
 
     for word in stop_words:
         if word in freqs:
-            #print("removing " + word + " from freqs")
             del freqs[word]
 
 def get_tokens(text):
     return re.split("[^a-zA-Z0-9']+", text.lower())
 
 def compute_word_frequencies(tokens):
-    #freqs = defaultdict(int)
     freqs = dict()
     for token in tokens:
         if token in freqs:
@@ -123,7 +132,7 @@ def compute_word_frequencies(tokens):
         else:
             freqs[token] = 1
 
-    return freqs
+    return freqs 
 
 def should_visit(link): 
     return is_valid(link)
@@ -133,7 +142,7 @@ def extract_next_links(link, resp):
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         url = url.get('href')
-        if url == "/" or url[0] == "#":    #will get rid of some fragments
+        if url == "/" or url[0] == "#" or url == None:    #will get rid of some fragments
             continue
         else:
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
