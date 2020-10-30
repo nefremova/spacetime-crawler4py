@@ -95,7 +95,15 @@ class Frontier(object):
 
     def check_fingerprint_cache(self):
         if len(self.fingerprint_cache) >= self.config.cache_capacity:
-            self.fingerprint_cache.clear()
+            sorted_cache = list(sorted(self.fingerprint_cache.keys(), key=lambda x: self.fingerprint_cache[x][1]))
+            to_delete = sorted_cache[:self.config.cache_dump_amt]
+
+            for i in range(len(to_delete)):
+                url = to_delete[i]
+                del self.fingerprint_cache[url]
+            
+            for url in self.fingerprint_cache:
+                self.fingerprint_cache[url] = int(self.fingerprint_cache[url] * (2/3))
          
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
