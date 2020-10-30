@@ -41,7 +41,7 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
         url_cache[url] = 0
         return []
 
-    if resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
+    if 'Content-Type' in resp.raw_response.headers and resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
         return []
 
     # TEXT PARSING
@@ -73,12 +73,28 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     return test
 
 def similar_page_exists(fingerprint, cache):
-    for url_hash, value in cache.items():
-        print_list, rank = value
+    for url_hash in cache:
+        print_list = cache[url_hash][0]
         if dup_check(fingerprint, print_list):
-            fingerprint[url_hash][1] += 1
+            cache[url_hash][1] += 1
             return True
 
+    return False
+
+def is_trap(url):
+    domain, subdomain, path = split_url(url)
+    if subdomain.find("archive") != -1:
+        return True
+    if subdomain.find("calendar") != -1:
+        return True
+    if path.find("calendar") != -1:
+        return True
+    if path.find("stayconnected") != -1:
+        return True
+    if path.find("replytocom") != -1:
+        return True
+    if subdomain.find("wics") != -1 and path.find("event") != 1 and path.find("list") == -1:
+        return True
     return False
 
 def is_visited(link, db, cache):
@@ -108,7 +124,7 @@ def dup_check(prints1, prints2):
     if (len(prints1) + len(prints2)) == 0:
         return False
 
-    threshold = 0.79
+    threshold = 0.75
 
     intersection = set(prints1).intersection(prints2)
     similarity = len(intersection)/(len(prints1) + len(prints2))
@@ -157,7 +173,7 @@ def compute_word_frequencies(tokens):
     return freqs 
 
 def should_visit(link, db, url_cache): 
-    return is_valid(link) and not is_visited(link, db, url_cache)
+    return is_valid(link) and not is_visited(link, db, url_cache) and not is_trap(link)
 
 def extract_next_links(link, resp):
     urls = set()
@@ -179,19 +195,12 @@ def extract_next_links(link, resp):
 def is_valid(url):
     try:
         if not url: return False
-        # Append '//' to beginning of url in order for urlparse to detect netloc
-        split_url = url.split('//')
-        if len(split_url) > 2:
-            return False 
-        elif len(split_url) == 1:
-            url = '//' + url
-
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
 
         domain_match = re.match(
-            r"(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
+            r"(//)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
             + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
         type_match = re.match(
@@ -202,16 +211,14 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv" 
-            + r"|r|c|cpp|java|python|m"
+            + r"|r|c|cpp|java|python|m|py|mat|war"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
-        return (domain_match and not type_match) 
+        return True if (domain_match and not type_match) else False
      
 
     except TypeError:
         print ("TypeError for ", parsed)
         raise
 
-def has_visited(url, visited_urls):
-    pass
     
