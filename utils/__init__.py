@@ -47,5 +47,4 @@ def split_url(url):
                     r"(.*//)(www\.?)?(.*)(today\.uci\.edu\/department\/information_computer_sciences"
                     + r"|\.ics\.uci\.edu|\.cs\.uci\.edu"
                     + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", url.lower(), maxsplit=5)
-    print("URL:", url, "SPLIT DOMAIN:", split_domain)
     return (mapping[split_domain[4]], split_domain[3], split_domain[5])

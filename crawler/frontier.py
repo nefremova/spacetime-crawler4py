@@ -91,7 +91,7 @@ class Frontier(object):
                 print("DB ERROR:", e)
 
             for url in self.visited_cache:
-                self.visited_cache[url] = int(self.visited_cache[url] * (2/3))
+                self.visited_cache[url] = int(self.visited_cache[url] * self.config.rank_dec)
 
     def check_fingerprint_cache(self):
         if len(self.fingerprint_cache) >= self.config.cache_capacity:
@@ -103,7 +103,7 @@ class Frontier(object):
                 del self.fingerprint_cache[url]
             
             for url in self.fingerprint_cache:
-                self.fingerprint_cache[url] = int(self.fingerprint_cache[url] * (2/3))
+                self.fingerprint_cache[url] = int(self.fingerprint_cache[url] * self.config.rank_dec)
          
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)

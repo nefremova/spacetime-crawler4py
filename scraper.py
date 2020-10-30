@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urldefrag
 from bs4 import BeautifulSoup
 from database import Database
 from collections import defaultdict 
@@ -9,12 +9,14 @@ from nltk.util import ngrams
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
     #TODO: handle responses (2xx, 3xx)
-
     if resp.status >= 400:
         print("Status", resp.status, ":", resp.error)
         return []
     elif resp.status < 200:
         print("Status", resp.status, ":", resp.raw_response)
+        return []
+
+    if resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
         return []
 
     # TEXT PARSING
@@ -28,7 +30,6 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
         return []
     fingerprint_cache[url_hash] = (fingerprint, 0)
 
-    # TODO: Clean up links (Remove fragments / Add base url to relative links)
     print(links)
 
     # GET FREQUENCIES
@@ -42,10 +43,7 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     
     # RETURN NEW LINKS
     url_cache[url] = 0
-    
-    #we do this in a batch and not one at a time in should_visit because it is more efficient to let sqlite do logic
-    #print the newly filtered list of links
-    return [link for link in links if should_visit(link, db, url_cache)] #do any more last minute filtering on links one at a time
+    return [link for link in links if should_visit(link, db, url_cache)] 
 
 def similar_page_exists(fingerprint, cache):
     for url_hash, value in cache.items():
@@ -139,6 +137,7 @@ def extract_next_links(link, resp):
         if not url  or url == "/" or url[0] == "#":    #will get rid of some fragments
             continue
         else:
+            url = urldefrag(url)[0] # remove the rest of the fragments
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
             # https://docs.python.org/3/library/urllib.parse.html?highlight=urllib%20urljoin#urllib.parse.urljoin
             # reference for above just in case because huh??? what???
