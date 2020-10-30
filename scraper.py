@@ -5,12 +5,16 @@ from database import Database
 from collections import defaultdict 
 import hashlib
 from utils import split_url
+from nltk.util import ngrams
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
     #TODO: handle responses (2xx, 3xx)
 
-    if resp.status >= 400:
+    if resp.status >= 600:
         print("Status " + str(resp.status) + ": " + resp.error)
+        return []
+    elif resp.status >= 400:
+        print("Status " + str(resp.status) + ": " + resp.raw_response)
         return []
     elif resp.status < 200:
         print("Status " + str(resp.status) + ": " + resp.raw_response)
@@ -25,13 +29,16 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     if similar_page_exists(fingerprint, db, fingerprint_cache):
         return []
 
+    print(len(fingerprint))
+    print(len(serialize_prints(fingerprint)))
+
     # TODO: Clean up links (Remove fragments / Add base url to relative links)
-    print(links)
+    #print(links)
 
     # GET FREQUENCIES
     freqs = compute_word_frequencies(tokens)
     remove_stop_words(freqs)
-    print(freqs)
+    #print(freqs)
     input("Hit enter when ready: ")
 
     db.upsert_word_counts(freqs)
@@ -56,23 +63,36 @@ def remove_visited_links(links, db, cache):
     unvisited_links = list(filter(lambda x: x not in cache or not db.url_exists(split_url(x)), links))
     print("========unvisited_links=========")
     print(unvisited_links)
-    return unvisited_links    #return empty list for now
+    return unvisited_links
+    #return [] #return empty list for now
+
+def serialize_prints(fingerprint):
+    line = ""
+
+    for value in fingerprint:
+        line += str(value)
+
+    return line
+
 
 def create_fingerprint(words):
-    #TODO: look into nltk, has ngram func
-    #https://stackoverflow.com/questions/17531684/n-grams-in-python-four-five-six-grams
     n = 3    # going to create 3-grams
     hash_vals = []
 
-    for i in range(0, len(words) - n):
-        gram = words[i] + " " + words[i+1] + " " + words[i+2]
+    n_grams = ngrams(words, n)
+
+    for gram in n_grams:
+        gram = " ".join(gram)
         hex_hash = hashlib.sha256(gram.encode()).hexdigest()
         hex_hash = int(hex_hash, 16)
-        if hex_hash % n == 0:
+        if hex_hash % (n + 10) == 0:
             hash_vals.append(hex_hash)
 
-#    print(hash_vals)
+    # print(hash_vals)
+    # input("Hit enter when ready: ")
     return hash_vals
+
+
 
 def dup_check(prints1, prints2):
     threshold = 0.79
@@ -133,7 +153,7 @@ def extract_next_links(link, resp):
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         url = url.get('href')
-        if url == "/" or url[0] == "#":    #will get rid of some fragments
+        if url == None or url == "/" or url[0] == "#":    #will get rid of some fragments
             continue
         else:
             urls.add(urljoin(link, url))   #if url is relative, will create absolute

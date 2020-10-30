@@ -38,7 +38,7 @@ def normalize(url):
 def split_url(url):
     mapping = {
         ".ics.uci.edu": 1,
-        ".cs.uci.ed": 2,
+        ".cs.uci.edu": 2,
         ".informatics.uci.edu": 3,
         ".stat.uci.edu": 4,
         "today.uci.edu/department/information_computer_sciences": 5
