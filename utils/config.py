@@ -19,3 +19,4 @@ class Config(object):
         self.cache_server = None
         self.db_name = config["SQLITE"]["DBNAME"].strip()
         self.cache_capacity = int(config["LOCAL PROPERTIES"]["CACHE_CAPACITY"])
+        self.cache_dump_amt = int(self.cache_capacity * float(config["LOCAL PROPERTIES"]["CACHE_DUMP_PERCENT"]))

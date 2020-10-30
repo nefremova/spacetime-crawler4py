@@ -9,13 +9,14 @@ from scraper import is_valid
 from urllib.parse import urlparse
 import re
 from database import Database
+import math 
 
 class Frontier(object):
     def __init__(self, config, restart):
         self.logger = get_logger("FRONTIER")
         self.config = config
         self.to_be_downloaded = list()
-        self.visited_cache = set()
+        self.visited_cache = dict()
         self.fingerprint_cache = dict()
         
         if not os.path.exists(self.config.save_file) and not restart:
@@ -70,34 +71,30 @@ class Frontier(object):
             self.save.sync()
             self.to_be_downloaded.append(url)
     
-    def insert_visited_cache(self, url):
-        self.visited_cache.add(url)
+    def check_visited_cache(self):
         if len(self.visited_cache) >= self.config.cache_capacity:
-            to_insert = []
-            for link in self.visited_cache:
-                to_insert.append(split_url(link))
-            print("Inserting into DB:", to_insert)
+            sorted_cache = list(sorted(self.visited_cache.keys(), key=lambda x: self.visited_cache[x]))
+            to_delete = sorted_cache[:self.config.cache_dump_amt]
+
+            for i in range(len(to_delete)):
+                url = to_delete[i]
+                del self.visited_cache[url]
+                to_delete[i] = split_url(url)
+
+            print("Inserting into DB:", to_delete)
             try:
                 db = Database(self.config.db_name)
                 db.connect()
-                db.insert_urls(to_insert)
+                db.insert_urls(to_delete)
                 db.close_connection()
             except Exception as e:
                 print("DB ERROR:", e)
-            self.visited_cache.clear()
-    
-    def insert_fingerprint_cache(self, url, fingerprint):
-        urlhash = get_urlhash(url)
-        self.fingerprint_cache[urlhash] = fingerprint
+
+            for url in self.visited_cache:
+                self.visited_cache[url] = int(self.visited_cache[url] * (2/3))
+
+    def check_fingerprint_cache(self):
         if len(self.fingerprint_cache) >= self.config.cache_capacity:
-            print("Inserting into DB:", self.fingerprint_cache)
-            try:
-                db = Database(self.config.db_name)
-                db.connect() 
-                db.insert_fingerprints(self.fingerprint_cache)
-                db.close_connection()
-            except Exception as e:
-                print("DB ERROR:", e)
             self.fingerprint_cache.clear()
          
     def mark_url_complete(self, url):

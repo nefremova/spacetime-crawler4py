@@ -11,10 +11,10 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     #TODO: handle responses (2xx, 3xx)
 
     if resp.status >= 400:
-        print("Status " + str(resp.status) + ": " + resp.error)
+        print("Status", resp.status, ":", resp.error)
         return []
     elif resp.status < 200:
-        print("Status " + str(resp.status) + ": " + resp.raw_response)
+        print("Status", resp.status, ":", resp.raw_response)
         return []
 
     # TEXT PARSING
@@ -24,8 +24,9 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
     url_hash = get_urlhash(url)
-    if similar_page_exists(url_hash, fingerprint, db, fingerprint_cache):
+    if similar_page_exists(fingerprint, fingerprint_cache):
         return []
+    fingerprint_cache[url_hash] = (fingerprint, 0)
 
     # TODO: Clean up links (Remove fragments / Add base url to relative links)
     print(links)
@@ -40,33 +41,26 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     #db.get_word_counts()
     
     # RETURN NEW LINKS
-    # Add current url & current fingerprint to sets (this change is only saved locally- will have to actually be added later)
-    url_cache.add(url)
-    fingerprint_cache[url_hash] = fingerprint
-    links = remove_visited_links(links, db, url_cache)
-
+    url_cache[url] = 0
+    
     #we do this in a batch and not one at a time in should_visit because it is more efficient to let sqlite do logic
     #print the newly filtered list of links
-    return ([link for link in links if should_visit(link)], fingerprint) #do any more last minute filtering on links one at a time
+    return [link for link in links if should_visit(link, db, url_cache)] #do any more last minute filtering on links one at a time
 
-def similar_page_exists(url_hash, fingerprint, db, cache):
-    for print_list in cache.values():
+def similar_page_exists(fingerprint, cache):
+    for url_hash, value in cache.items():
+        print_list, rank = value
         if dup_check(fingerprint, print_list):
+            fingerprint[url_hash][1] += 1
             return True
-
-    prints = db.get_all_fingerprints()
-    #need to see format of prints before implementing check
 
     return False
 
-def remove_visited_links(links, db, cache):
-    print("========url_cache=========")
-    print(cache)
-    unvisited_links = list(filter(lambda x: x not in cache or not db.url_exists(split_url(x)), links))
-    print("========unvisited_links=========")
-    print(unvisited_links)
-    # return unvisited_links    
-    return []   #return empty list for now
+def is_visited(link, db, cache):
+    if link in cache:
+        cache[link] += 1
+    elif not db.url_exists(split_url(link)):
+        unvisited_links.append(link)
 
 def create_fingerprint(words):
     n = 3    # going to create 3-grams
@@ -134,18 +128,20 @@ def compute_word_frequencies(tokens):
 
     return freqs 
 
-def should_visit(link): 
-    return is_valid(link)
+def should_visit(link, db, url_cache): 
+    return is_valid(link) and not is_visited(link, db, url_cache)
 
 def extract_next_links(link, resp):
     urls = set()
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         url = url.get('href')
-        if url == "/" or url[0] == "#" or url == None:    #will get rid of some fragments
+        if not url  or url == "/" or url[0] == "#":    #will get rid of some fragments
             continue
         else:
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
+            # https://docs.python.org/3/library/urllib.parse.html?highlight=urllib%20urljoin#urllib.parse.urljoin
+            # reference for above just in case because huh??? what???
 
     text = soup.get_text(" ", strip = True)
     
