@@ -98,12 +98,14 @@ class Frontier(object):
             sorted_cache = list(sorted(self.fingerprint_cache.keys(), key=lambda x: self.fingerprint_cache[x][1]))
             to_delete = sorted_cache[:self.config.cache_dump_amt]
 
+            print("Before deleting prints", self.fingerprint_cache)
             for i in range(len(to_delete)):
                 url = to_delete[i]
                 del self.fingerprint_cache[url]
             
+            print("After deleting prints", self.fingerprint_cache)
             for url in self.fingerprint_cache:
-                self.fingerprint_cache[url] = int(self.fingerprint_cache[url] * self.config.rank_dec)
+                self.fingerprint_cache[url][1] = int(self.fingerprint_cache[url][1] * self.config.rank_dec)
          
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)

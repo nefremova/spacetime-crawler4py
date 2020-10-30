@@ -2,18 +2,43 @@ import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from bs4 import BeautifulSoup
 from database import Database
-from collections import defaultdict 
 import hashlib
 from utils import split_url, get_urlhash
 from nltk.util import ngrams
+import requests
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
     #TODO: handle responses (2xx, 3xx)
-    if resp.status >= 400:
+    if resp.status >= 600:
         print("Status", resp.status, ":", resp.error)
+        url_cache[url] = 0
         return []
+    elif resp.status >= 400:
+        print("Status", resp.status, ":", resp.raw_response)
+        url_cache[url] = 0
+        # 408 Request Timeout = you can try again 
+        # at a later time with the same request headers
+        if resp.status == 408:
+            return [url]
+
+        # all other 4xx codes, you cannot resend 
+        # request without modifying request headers,
+        # which we don't control
+        return []
+    elif resp.status >= 300:    #redirection
+        url_hash = get_urlhash(url)
+        url_cache[url] = 0
+
+        redirect_loc = resp.raw_response.headers['location']
+        if not redirect_loc:    #this shouldn't happen
+            return []
+
+        print("Redirect to", redirect_loc)
+        return [urljoin(url, redirect_loc)]
+
     elif resp.status < 200:
         print("Status", resp.status, ":", resp.raw_response)
+        url_cache[url] = 0
         return []
 
     if resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
@@ -28,22 +53,24 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     url_hash = get_urlhash(url)
     if similar_page_exists(fingerprint, fingerprint_cache):
         return []
-    fingerprint_cache[url_hash] = (fingerprint, 0)
+    fingerprint_cache[url_hash] = [fingerprint, 0]
 
-    print(links)
+    # print(links)
 
     # GET FREQUENCIES
     freqs = compute_word_frequencies(tokens)
     remove_stop_words(freqs)
-    print(freqs)
-    input("Hit enter when ready: ")
+    # print(freqs)
 
     db.upsert_word_counts(freqs)
-    #db.get_word_counts()
     
     # RETURN NEW LINKS
     url_cache[url] = 0
-    return [link for link in links if should_visit(link, db, url_cache)] 
+    test = [link for link in links if should_visit(link, db, url_cache)]
+    print(test)
+    # input("Hit enter when ready: ")
+    # return [link for link in links if should_visit(link, db, url_cache)]
+    return test
 
 def similar_page_exists(fingerprint, cache):
     for url_hash, value in cache.items():
@@ -58,7 +85,7 @@ def is_visited(link, db, cache):
     if link in cache:
         cache[link] += 1
     elif not db.url_exists(split_url(link)):
-        unvisited_links.append(link)
+        unvisited_links.append(link)    # where is unvisited_links declared? am i blind
 
 def create_fingerprint(words):
     n = 3    # going to create 3-grams
@@ -73,11 +100,12 @@ def create_fingerprint(words):
         if hex_hash % (n + 10) == 0:
             hash_vals.append(hex_hash)
 
-    # print(hash_vals)
-    # input("Hit enter when ready: ")
     return hash_vals
 
 def dup_check(prints1, prints2):
+    if (len(prints1) + len(prints2)) == 0:
+        return False
+
     threshold = 0.79
 
     intersection = set(prints1).intersection(prints2)
@@ -168,7 +196,7 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|txt"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv" 
