@@ -86,7 +86,7 @@ class Database:
             return
         c = self._conn.cursor()
         c.execute('''SELECT EXISTS (SELECT 1 FROM visited_urls WHERE domain_id = ? AND subdomain = ? AND path = ? ); ''', url)
-        return True if c.fetchall() else False
+        return True if c.fetchone()[0] != 0 else False
 
     def get_word_counts(self):
         if not self._conn:

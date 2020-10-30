@@ -84,13 +84,15 @@ def similar_page_exists(fingerprint, cache):
 def is_visited(link, db, cache):
     if link in cache:
         cache[link] += 1
-    elif not db.url_exists(split_url(link)):
-        unvisited_links.append(link)    # where is unvisited_links declared? am i blind
+        return True
+    elif db.url_exists(split_url(link)):
+        return True
+    else:
+        return False
 
 def create_fingerprint(words):
     n = 3    # going to create 3-grams
     hash_vals = []
-
     n_grams = ngrams(words, n)
 
     for gram in n_grams:
