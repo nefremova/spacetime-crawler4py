@@ -8,7 +8,6 @@ from nltk.util import ngrams
 import requests
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
-    #TODO: handle responses (2xx, 3xx)
     if resp.status >= 600:
         print("Status", resp.status, ":", resp.error)
         url_cache[url] = 0
@@ -50,14 +49,10 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
 
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
-    url_hash = get_urlhash(url)
-
     if similar_page_exists(fingerprint, fingerprint_cache):
         return []
 
-    # if similar_paths(url, url_cache):
-    #     return []
-
+    url_hash = get_urlhash(url)
     fingerprint_cache[url_hash] = [fingerprint, 0]
 
     # print(links)
@@ -65,8 +60,6 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # GET FREQUENCIES
     freqs = compute_word_frequencies(tokens)
     remove_stop_words(freqs)
-    # print(freqs)
-
     db.upsert_word_counts(freqs)
     
     # RETURN NEW LINKS
@@ -114,9 +107,12 @@ def similar_paths(url, url_cache):
 
 
 def similar_page_exists(fingerprint, cache):
+    print_set = set(fingerprint)
+
     for url_hash in cache:
         print_list = cache[url_hash][0]
-        if dup_check(fingerprint, print_list):
+        if dup_check(print_set, print_list):
+            print("PRINT MATCH")  
             cache[url_hash][1] += 1
             return True
 
@@ -167,16 +163,20 @@ def create_fingerprint(words):
 
 def dup_check(prints1, prints2):
     if (len(prints1) + len(prints2)) == 0:
+        print("BOTH PRINT LISTS EMPTY")
         return False
 
     threshold = 0.75
 
-    intersection = set(prints1).intersection(prints2)
-    similarity = len(intersection)/(len(prints1) + len(prints2))
-    if similarity > 0.25:
+    set2 = set(prints2)
+    intersection = prints1 & set2
+    union = prints1 | set2
+    similarity = len(intersection)/(len(union))
+
+    if similarity > 0.50:
         print("==============similarity", similarity, "=======================") 
         print("len(prints1) = ", len(prints1))
-        print("len(prints2) = ", len(prints2))
+        print("len(set2) = ", len(set2))
 
     return similarity > threshold
 
@@ -248,7 +248,7 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
-        outside_domain = re.match(".*\.com.*", url.lower())
+        outside_domain = re.match(".*\.com.*|.*\.co.*|.*\.org.*|.*\.net.*", url.lower())
         if outside_domain:
             return False
         domain_match = re.match(
@@ -256,13 +256,13 @@ def is_valid(url):
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
             + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
         type_match = re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
+            r".*\.(css|js|bmp|gif|jpe?g|ico|img|webp"
+            + r"|png|tiff?|mid|mp2|mp3|mp4|ds_store"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|txt|scm"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ss|ics"
-            + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv" 
+            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names|txt|scm"
+            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ss|ics|apk"
+            + r"|epub|dll|cnf|tgz|sha1|json|pub|ppk|log"
+            + r"|thmx|mso|arff|rtf|jar|csv|sql|ova" 
             + r"|r|c|cpp|java|python|m|py|mat|war"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
