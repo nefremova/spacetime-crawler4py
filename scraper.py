@@ -51,8 +51,13 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
     url_hash = get_urlhash(url)
+
     if similar_page_exists(fingerprint, fingerprint_cache):
         return []
+
+    # if similar_paths(url, url_cache):
+    #     return []
+
     fingerprint_cache[url_hash] = [fingerprint, 0]
 
     # print(links)
@@ -67,10 +72,46 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # RETURN NEW LINKS
     url_cache[url] = 0
     test = [link for link in links if should_visit(link, db, url_cache)]
-    print(test)
+    # print(test)
     # input("Hit enter when ready: ")
     # return [link for link in links if should_visit(link, db, url_cache)]
     return test
+
+def similar_paths(url, url_cache):
+    domain1, subdomain1, path1 = split_url(url)
+    if not path1:
+        return False
+    if path1.find("?"):
+        return False
+
+    for link in url_cache:
+        domain2, subdomain2, path2 = split_url(link)
+        if not path2:
+            continue
+        if domain1 != domain2 and subdomain1 != subdomain2:
+            continue
+
+        path1 = path1[(path1.rfind('/')):]
+        path2 = path2[(path2.rfind('/')):]
+
+        intersection = 0
+        smaller = path1 if len(path1) < len(path2) else path2
+        if (len(smaller)) == 0:
+            continue
+
+        for i in range(len(smaller)):
+            if path1[i] == path2[i]:
+                intersection += 1
+
+        similarity = (intersection)/(len(smaller))
+
+        if similarity > 0.75:
+            print("==========similar paths============")
+            print(url)
+            print(link)
+            return True
+
+
 
 def similar_page_exists(fingerprint, cache):
     for url_hash in cache:
@@ -90,6 +131,10 @@ def is_trap(url):
     if path.find("calendar") != -1:
         return True
     if path.find("stayconnected") != -1:
+        return True
+    if path.find("hall_of_fame") != -1:
+        return True
+    if path.find("sidebyside") != -1:
         return True
     if path.find("replytocom") != -1:
         return True
@@ -128,6 +173,10 @@ def dup_check(prints1, prints2):
 
     intersection = set(prints1).intersection(prints2)
     similarity = len(intersection)/(len(prints1) + len(prints2))
+    if similarity > 0.25:
+        print("==============similarity", similarity, "=======================") 
+        print("len(prints1) = ", len(prints1))
+        print("len(prints2) = ", len(prints2))
 
     return similarity > threshold
 
@@ -199,6 +248,9 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
+        outside_domain = re.match(".*\.com.*", url.lower())
+        if outside_domain:
+            return False
         domain_match = re.match(
             r"(//)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
@@ -207,8 +259,8 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|txt"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|txt|scm"
+            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ss|ics"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv" 
             + r"|r|c|cpp|java|python|m|py|mat|war"
