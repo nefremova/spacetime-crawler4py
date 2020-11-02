@@ -10,7 +10,11 @@ def download(url, config, logger=None):
         f"http://{host}:{port}/",
         params=[("q", f"{url}"), ("u", f"{config.user_agent}")])
     if resp:
-        return Response(cbor.loads(resp.content))
+        try:
+            return Response(cbor.loads(resp.content))
+        except Exception as err:
+            logger.error(f"Response error {err} with url {url}.")
+
     logger.error(f"Spacetime Response error {resp} with url {url}.")
     return Response({
         "error": f"Spacetime Response error {resp} with url {url}.",
