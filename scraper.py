@@ -223,7 +223,8 @@ def compute_word_frequencies(tokens):
     return freqs 
 
 def should_visit(link, db, url_cache): 
-    return is_valid(link) and not is_visited(link, db, url_cache) and not is_trap(link)
+#    return is_valid(link) and not is_visited(link, db, url_cache) and not is_trap(link)
+    return is_valid(link) and not is_visited(link, db, url_cache)
 
 def extract_next_links(link, resp):
     urls = set()
@@ -259,6 +260,7 @@ def is_valid(url):
             r"(\/\/)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
             + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
+
         type_match = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico|img|webp"
             + r"|png|tiff?|mid|mp2|mp3|mp4|ds_store"
@@ -267,6 +269,8 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ss|ics|apk"
             + r"|epub|dll|cnf|tgz|sha1|json|pub|ppk|log"
             + r"|thmx|mso|arff|rtf|jar|csv|sql|ova" 
+            + r"|gctx|npy|gz|npz|bgz|pbtxt|model|hdf5|seq"
+            + r"|bed|bw|bz2|bam|bai|fasta|mod|test"
             + r"|r|c|cpp|java|python|m|py|mat|war"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
