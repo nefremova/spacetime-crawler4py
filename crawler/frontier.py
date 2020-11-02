@@ -18,6 +18,7 @@ class Frontier(object):
         self.to_be_downloaded = list()
         self.visited_cache = dict()
         self.fingerprint_cache = dict()
+        self.max_webpage_len = 0
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -116,3 +117,7 @@ class Frontier(object):
 
         self.save[urlhash] = (url, True)
         self.save.sync()
+    
+    def update_max(self, page_len):
+        if page_len > self.max_webpage_len:
+            self.max_webpage_len = page_len

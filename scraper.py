@@ -8,49 +8,55 @@ from nltk.util import ngrams
 import requests
 
 def scraper(url, resp, db, url_cache, fingerprint_cache):
-    if resp.status >= 600:
+    url_cache[url] = 0 # add url to visited cache no matter what
+
+    if resp.status >= 600: # invalid domain (this should not happen)
         print("Status", resp.status, ":", resp.error)
-        url_cache[url] = 0
-        return []
-    elif resp.status >= 400:
+        return ([], 0)
+    elif resp.status >= 400: # not ok
         print("Status", resp.status, ":", resp.raw_response)
-        url_cache[url] = 0
         # 408 Request Timeout = you can try again 
         # at a later time with the same request headers
         if resp.status == 408:
-            return [url]
+            return ([url], 0)
 
         # all other 4xx codes, you cannot resend 
         # request without modifying request headers,
         # which we don't control
-        return []
+        return ([], 0)
     elif resp.status >= 300:    #redirection
         url_hash = get_urlhash(url)
-        url_cache[url] = 0
 
         redirect_loc = resp.raw_response.headers['location']
         if not redirect_loc:    #this shouldn't happen
-            return []
+            return ([], 0)
 
         print("Redirect to", redirect_loc)
-        return [urljoin(url, redirect_loc)]
+        return ([urljoin(url, redirect_loc)], 0)
 
-    elif resp.status < 200:
+    elif resp.status < 200: # not ok
         print("Status", resp.status, ":", resp.raw_response)
-        url_cache[url] = 0
-        return []
+        return ([], 0)
 
     if 'Content-Type' in resp.raw_response.headers and resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
-        return []
+        return ([], 0)
+    
+    if 'Content-Length' in resp.raw_response.headers:
+        content_length = int(resp.raw_response.headers['Content-Length'])
+        if content_length < 1500 or content_length > 6000000: 
+            # numbers based roughly on http://www.blankwebsite.com/ for lower bound and https://www.seoptimer.com/blog/webpage-size/ for upper bound
+            return ([], 0)
 
     # TEXT PARSING
     links, text = extract_next_links(url, resp) # get links + text
     tokens = get_tokens(text)
+    tokens_no_stop = remove_stop_words(tokens)
+    page_len = len(tokens_no_stop)
 
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
     if similar_page_exists(fingerprint, fingerprint_cache):
-        return []
+        return ([], page_len)
 
     url_hash = get_urlhash(url)
     fingerprint_cache[url_hash] = [fingerprint, 0]
@@ -59,22 +65,19 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
 
     # GET FREQUENCIES
     freqs = compute_word_frequencies(tokens)
-    remove_stop_words(freqs)
     db.upsert_word_counts(freqs)
     
     # RETURN NEW LINKS
-    url_cache[url] = 0
-    test = [link for link in links if should_visit(link, db, url_cache)]
-    # print(test)
+    to_visit = [link for link in links if should_visit(link, db, url_cache)]
+    # print(t)
     # input("Hit enter when ready: ")
-    # return [link for link in links if should_visit(link, db, url_cache)]
-    return test
+    return (to_visit, page_len)
 
 def similar_paths(url, url_cache):
     domain1, subdomain1, path1 = split_url(url)
     if not path1:
         return False
-    if path1.find("?"):
+    if path1.find("?") != -1:
         return False
 
     for link in url_cache:
@@ -104,8 +107,6 @@ def similar_paths(url, url_cache):
             print(link)
             return True
 
-
-
 def similar_page_exists(fingerprint, cache):
     print_set = set(fingerprint)
 
@@ -133,7 +134,7 @@ def is_trap(url):
     if path.find("sidebyside") != -1:
         return True
     if path.find("replytocom") != -1:
-        return True
+        return True 
     if subdomain.find("wics") != -1 and path.find("event") != 1 and path.find("list") == -1:
         return True
     return False
@@ -180,7 +181,7 @@ def dup_check(prints1, prints2):
 
     return similarity > threshold
 
-def remove_stop_words(freqs):
+def remove_stop_words(tokens):
     stop_words = [
         "a", "about", "above", "after", "again", "against", 
         "all", "am", "an", "and", "any", "are", "aren't", "as", "at", 
@@ -204,12 +205,12 @@ def remove_stop_words(freqs):
         "why's", "with", "won't", "would", "wouldn't", 
         "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
 
-    for word in stop_words:
-        if word in freqs:
-            del freqs[word]
+    return [token for token in tokens if token not in stop_words]
+            
 
 def get_tokens(text):
-    return re.split("[^a-zA-Z0-9']+", text.lower())
+    # tokenize on 2+ characters, must contain at least 1 letter, can contain periods & apostrophes but not at the start or end
+    return re.findall(r"[a-z0-9]+[a-z][a-z0-9]*[\.']*[a-z0-9\.]*\b", text.lower())
 
 def compute_word_frequencies(tokens):
     freqs = dict()
@@ -235,15 +236,18 @@ def extract_next_links(link, resp):
             url = urldefrag(url)[0] # remove the rest of the fragments
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
             # https://docs.python.org/3/library/urllib.parse.html?highlight=urllib%20urljoin#urllib.parse.urljoin
-            # reference for above just in case because huh??? what???
+            # reference for above just in case because that's crazy
 
     text = soup.get_text(" ", strip = True)
-    
     return list(urls), text 
 
 def is_valid(url):
     try:
         if not url: return False
+
+        if url.find("%5B%5D") != -1 or url.find("?share=") != -1:
+            return False
+
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -252,7 +256,7 @@ def is_valid(url):
         if outside_domain:
             return False
         domain_match = re.match(
-            r"(//)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
+            r"(\/\/)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
             + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
         type_match = re.match(
