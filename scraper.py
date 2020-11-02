@@ -38,6 +38,10 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
         print("Status", resp.status, ":", resp.raw_response)
         return ([], 0)
 
+    # handles the bad responses that caused EOF errors 
+    if not resp.raw_response:
+        return ([], 0)
+
     if 'Content-Type' in resp.raw_response.headers and resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
         return ([], 0)
     
@@ -247,6 +251,10 @@ def is_valid(url):
         if not url: return False
 
         if url.find("%5B%5D") != -1 or url.find("?share=") != -1:
+            return False
+
+        archive_search = re.match(r".*archive\.ics\.uci\.edu\/ml\/datasets\.php.*", url.lower())
+        if archive_search:
             return False
 
         parsed = urlparse(url)
