@@ -15,6 +15,12 @@ def download(url, config, logger=None):
         except Exception as err:
             logger.error(f"Response error {err} with url {url}.")
 
+            # return so url can be added to cache
+            return Response({
+                "error": f"Response error {err} with url {url}.",
+                "status": resp.status_code,
+                "url": url})
+
     logger.error(f"Spacetime Response error {resp} with url {url}.")
     return Response({
         "error": f"Spacetime Response error {resp} with url {url}.",
