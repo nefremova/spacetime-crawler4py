@@ -246,7 +246,7 @@ def is_valid(url):
     try:
         if not url: return False
 
-        if url.find("%5B%5D") != -1 or url.find("?share=") != -1:
+        if url.find("%5B%5D") != -1 or url.find("?share=") != -1 or url.find("?replytocom=") != -1:
             return False
 
         parsed = urlparse(url)
@@ -262,7 +262,7 @@ def is_valid(url):
         if outside_domain:
             return False
         domain_match = re.match(
-            r"(\/\/)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
+            r".*(\/\/)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
             + r"|.*(\.informatics\.uci\.edu\/?).*|.*(\.stat\.uci\.edu\/?).*", url.lower())
 
