@@ -107,5 +107,43 @@ class Database:
         #print(c.fetchall())
 
         return c.fetchall()
+    
+    def get_num_visited(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute('''SELECT COUNT(*) FROM visited_urls''')
+        return c.fetchone()
+    
+    def get_top_50_words(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute('''SELECT * FROM word_counts
+                     ORDER BY count DESC
+                     LIMIT 50;
+                  ''')
+
+        return c.fetchall()
+    
+    def get_ics_subdomains(self):
+        if not self._conn:
+            print("No Database Connection")
+            return
+        
+        c = self._conn.cursor()
+        c.execute('''SELECT subdomain, COUNT(*)
+                     FROM visited_urls
+                     WHERE domain_id = 1
+                     GROUP BY subdomain
+                     ORDER BY subdomain ASC;
+                  ''')
+
+        return c.fetchall()
+
 
 
