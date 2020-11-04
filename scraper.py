@@ -68,7 +68,7 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     # print(links)
 
     # GET FREQUENCIES
-    freqs = compute_word_frequencies(tokens)
+    freqs = compute_word_frequencies(tokens_no_stop)
     db.upsert_word_counts(freqs)
     
     # RETURN NEW LINKS
@@ -178,10 +178,10 @@ def dup_check(prints1, prints2):
     union = prints1 | set2
     similarity = len(intersection)/(len(union))
 
-    if similarity > 0.50:
-        print("==============similarity", similarity, "=======================") 
-        print("len(prints1) = ", len(prints1))
-        print("len(set2) = ", len(set2))
+#    if similarity > 0.50:
+#        print("==============similarity", similarity, "=======================") 
+#        print("len(prints1) = ", len(prints1))
+#        print("len(set2) = ", len(set2))
 
     return similarity > threshold
 
@@ -278,7 +278,7 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico|img|webp"
             + r"|png|tiff?|mid|mp2|mp3|mp4|ds_store"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names|txt|scm"
+            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names|scm"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso|ss|ics|apk"
             + r"|epub|dll|cnf|tgz|sha1|json|pub|ppk|log"
             + r"|thmx|mso|arff|rtf|jar|csv|sql|ova" 

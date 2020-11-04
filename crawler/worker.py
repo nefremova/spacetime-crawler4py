@@ -29,8 +29,9 @@ class Worker(Thread):
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
-            self.frontier.check_visited_cache()
-            self.frontier.check_fingerprint_cache()
+            self.frontier.check_visited_cache(tbd_url)
+            self.frontier.check_fingerprint_cache(tbd_url)
             self.frontier.update_max(page_len)
             time.sleep(self.config.time_delay)
+
         self.db.close_connection()
