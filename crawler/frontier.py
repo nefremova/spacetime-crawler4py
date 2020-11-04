@@ -41,6 +41,7 @@ class Frontier(object):
             db.connect()
             db.clear_db()
             db.close_connection()
+            self.clear_shelves()
             for url in self.config.seed_urls:
                 self.add_url(url)
         else:
@@ -62,13 +63,16 @@ class Frontier(object):
             f"Found {tbd_count} urls to be downloaded from {total_count} "
             f"total urls discovered.")
 
-        for url, fingerprint in self.print_shelf.values():
+        for url, fingerprint in self.print_shelf.items():
             self.fingerprint_cache[url] = fingerprint
 
-        for url, val in self.visit_shelf.values():
+        for url, val in self.visit_shelf.items():
             self.visited_cache[url] = val
 
         self.max_webpage_len = self.len_shelf["max_webpage_len"]
+        print("Loaded the following from shelve objects | max len = ", self.max_webpage_len)
+        print(self.fingerprint_cache)
+        print(self.visited_cache)
 
     def get_tbd_url(self):
         try:
@@ -84,7 +88,7 @@ class Frontier(object):
             self.save.sync()
             self.to_be_downloaded.append(url)
     
-    def check_visited_cache(self, completed_url):
+    def check_visited_cache(self):
         if len(self.visited_cache) >= self.config.cache_capacity:
             sorted_cache = list(sorted(self.visited_cache.keys(), key=lambda x: self.visited_cache[x]))
             to_delete = sorted_cache[:self.config.cache_dump_amt]
@@ -108,10 +112,10 @@ class Frontier(object):
                 self.visited_cache[url] = int(self.visited_cache[url] * self.config.rank_dec)
                 self.visit_shelf[url] = int(self.visit_shelf[url] * self.config.rank_dec)
 
-        self.visit_shelf[completed_url] = self.visited_cache[completed_url]
-        self.visit_shelf.sync()
+            self.visit_shelf.sync()
 
-    def check_fingerprint_cache(self, completed_url):
+
+    def check_fingerprint_cache(self):
         if len(self.fingerprint_cache) >= self.config.cache_capacity:
             sorted_cache = list(sorted(self.fingerprint_cache.keys(), key=lambda x: self.fingerprint_cache[x][1]))
             to_delete = sorted_cache[:self.config.cache_dump_amt]
@@ -127,9 +131,8 @@ class Frontier(object):
                 self.fingerprint_cache[url][1] = int(self.fingerprint_cache[url][1] * self.config.rank_dec)
                 self.print_shelf[url][1] = int(self.print_shelf[url][1] * self.config.rank_dec)
 
-        self.print_shelf[completed_url] = self.print_shelf[completed_url]
-        self.print_shelf.sync()
-
+            self.print_shelf.sync()
+        
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
         if urlhash not in self.save:
@@ -146,3 +149,20 @@ class Frontier(object):
 
             self.len_shelf["max_webpage_len"] = page_len
             self.len_shelf.sync()
+
+    def clear_shelves(self):
+        for url in self.visit_shelf.keys():
+            del self.visit_shelf[url]
+
+        for url in self.print_shelf.keys():
+            del self.print_shelf[url]
+       
+        self.len_shelf["max_webpage_len"] = 0
+
+        self.visit_shelf.sync()
+        self.print_shelf.sync()
+        self.len_shelf.sync()
+
+
+
+

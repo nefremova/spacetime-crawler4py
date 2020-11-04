@@ -7,8 +7,10 @@ from utils import split_url, get_urlhash
 from nltk.util import ngrams
 import requests
 
-def scraper(url, resp, db, url_cache, fingerprint_cache):
+def scraper(url, resp, db, url_cache, fingerprint_cache, url_shelf, print_shelf):
     url_cache[url] = 0 # add url to visited cache no matter what
+    url_shelf[url] = 0
+    url_shelf.sync()
 
     if resp.status >= 600: # invalid domain (this should not happen)
         print("Status", resp.status, ":", resp.error)
@@ -59,11 +61,13 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
 
     # COMPUTE FINGERPRINT 
     fingerprint = create_fingerprint(tokens)
-    if similar_page_exists(fingerprint, fingerprint_cache):
+    if similar_page_exists(fingerprint, fingerprint_cache, print_shelf):
         return ([], page_len)
 
     url_hash = get_urlhash(url)
     fingerprint_cache[url_hash] = [fingerprint, 0]
+    print_shelf[url_hash] = [fingerprint, 0]
+    print_shelf.sync()
 
     # print(links)
 
@@ -72,7 +76,7 @@ def scraper(url, resp, db, url_cache, fingerprint_cache):
     db.upsert_word_counts(freqs)
     
     # RETURN NEW LINKS
-    to_visit = [link for link in links if should_visit(link, db, url_cache)]
+    to_visit = [link for link in links if should_visit(link, db, url_cache, url_shelf)]
     # print(t)
     # input("Hit enter when ready: ")
     return (to_visit, page_len)
@@ -111,7 +115,7 @@ def similar_paths(url, url_cache):
             print(link)
             return True
 
-def similar_page_exists(fingerprint, cache):
+def similar_page_exists(fingerprint, cache, print_shelf):
     print_set = set(fingerprint)
 
     for url_hash in cache:
@@ -119,6 +123,8 @@ def similar_page_exists(fingerprint, cache):
         if dup_check(print_set, print_list):
             print("PRINT MATCH")  
             cache[url_hash][1] += 1
+            print_shelf[url_hash] = cache[url_hash]
+            print_shelf.sync()
             return True
 
     return False
@@ -143,9 +149,11 @@ def is_trap(url):
         return True
     return False
 
-def is_visited(link, db, cache):
+def is_visited(link, db, cache, url_shelf):
     if link in cache:
         cache[link] += 1
+        url_shelf[link] += 1
+        url_shelf.sync()
         return True
     elif db.url_exists(split_url(link)):
         return True
@@ -226,9 +234,9 @@ def compute_word_frequencies(tokens):
 
     return freqs 
 
-def should_visit(link, db, url_cache): 
+def should_visit(link, db, url_cache, url_shelf): 
 #    return is_valid(link) and not is_visited(link, db, url_cache) and not is_trap(link)
-    return is_valid(link) and not is_visited(link, db, url_cache)
+    return is_valid(link) and not is_visited(link, db, url_cache, url_shelf)
 
 def extract_next_links(link, resp):
     urls = set()
