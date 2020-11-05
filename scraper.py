@@ -261,6 +261,8 @@ def is_valid(url):
         if "%5B%5D" in url or \
         "?share=" in url or \
         "?replytocom=" in url or \
+        "haplo" in url or \
+        "â" in url or \
         ("hack" in url and "img" in url) or \
         ("grape" in url and ("version" in url or "diff" in url or "precision" in url)):
             return False
@@ -297,7 +299,7 @@ def is_valid(url):
             + r"|gctx|npy|gz|npz|bgz|pbtxt|model|hdf5|seq"
             + r"|bed|bw|bz2|bam|bai|fasta|mod|test"
             + r"|r|c|cpp|java|python|m|py|mat|war"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower() + parsed.query.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|bib|z)$", parsed.path.lower() + parsed.query.lower())
 
         return True if (domain_match and not type_match) else False
      
