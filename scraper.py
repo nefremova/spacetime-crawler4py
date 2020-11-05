@@ -258,7 +258,11 @@ def is_valid(url):
     try:
         if not url: return False
 
-        if url.find("%5B%5D") != -1 or url.find("?share=") != -1 or url.find("?replytocom=") != -1 or (url.find("hack") != -1 and url.find("img") != -1):
+        if "%5B%5D" in url or \
+        "?share=" in url or \
+        "?replytocom=" in url or \
+        ("hack" in url and "img" in url) or \
+        ("grape" in url and ("version" in url or "diff" in url or "precision" in url)):
             return False
 
         archive_search = re.match(r".*archive\.ics\.uci\.edu\/ml\/datasets\.php.*", url.lower())
@@ -293,13 +297,13 @@ def is_valid(url):
             + r"|gctx|npy|gz|npz|bgz|pbtxt|model|hdf5|seq"
             + r"|bed|bw|bz2|bam|bai|fasta|mod|test"
             + r"|r|c|cpp|java|python|m|py|mat|war"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower() + parsed.query.lower())
 
         return True if (domain_match and not type_match) else False
      
 
-    except TypeError:
-        print ("TypeError for ", parsed)
+    except TypeError as e:
+        print ("TypeError for ", e)
         raise
 
     

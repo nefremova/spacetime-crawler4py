@@ -57,6 +57,7 @@ def split_url(url):
     #print(split_domain)
     domain = mapping[split_domain[2]] if len(split_domain) > 1 else mapping[split_domain[0]]
     subdomain = split_domain[1] if len(split_domain) > 1 else ""
+    subdomain = re.sub(r"www\.?", "", subdomain)
     rest = split_domain[3] + parsed.path + parsed.query if len(split_domain) > 1 else parsed.path + parsed.query
 
     return (domain, subdomain, rest)
