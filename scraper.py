@@ -243,10 +243,10 @@ def extract_next_links(link, resp):
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         url = url.get('href')
-        url = "".join([char if ord(char) < 128 else '' for char in url]) # remove non-unicode characters
         if not url  or url == "/" or url[0] == "#":    #will get rid of some fragments
             continue
         else:
+            url = "".join([char if ord(char) < 128 else '' for char in url]) # remove non-ascii characters
             url = urldefrag(url)[0] # remove the rest of the fragments
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
             # https://docs.python.org/3/library/urllib.parse.html?highlight=urllib%20urljoin#urllib.parse.urljoin
