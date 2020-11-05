@@ -243,6 +243,7 @@ def extract_next_links(link, resp):
     soup = BeautifulSoup(resp.raw_response.text, 'html.parser')
     for url in soup.find_all('a'):
         url = url.get('href')
+        url = "".join([char if ord(char) < 128 else '' for char in url]) # remove non-unicode characters
         if not url  or url == "/" or url[0] == "#":    #will get rid of some fragments
             continue
         else:
@@ -262,7 +263,6 @@ def is_valid(url):
         "?share=" in url or \
         "?replytocom=" in url or \
         "haplo" in url or \
-        "â" in url or \
         ("hack" in url and "img" in url) or \
         ("grape" in url and ("version" in url or "diff" in url or "precision" in url)):
             return False
@@ -278,6 +278,7 @@ def is_valid(url):
         edu_domain = re.match(".*\.edu.*", url.lower())
         if not edu_domain:
             return False
+
         outside_domain = re.match(
                         r".*\.com.*|.*\.co.*|.*\.org.*|.*\.pt.*"
                         + r"|.*\.net.*|.*\.gov.*|.*\.info.*", url.lower())
@@ -307,5 +308,3 @@ def is_valid(url):
     except TypeError as e:
         print ("TypeError for ", e)
         raise
-
-    
