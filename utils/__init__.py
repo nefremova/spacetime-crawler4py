@@ -38,13 +38,31 @@ def normalize(url):
 def split_url(url):
     mapping = {
         ".ics.uci.edu": 1,
+        "ics.uci.edu": 1,
         ".cs.uci.edu": 2,
+        "cs.uci.edu": 2,
         ".informatics.uci.edu": 3,
+        "informatics.uci.edu": 3,
         ".stat.uci.edu": 4,
-        "today.uci.edu/department/information_computer_sciences": 5
+        "stat.uci.edu": 4,
+        ".today.uci.edu": 5,
+        "today.uci.edu": 5
     }
+    parsed = urlparse(url)
     split_domain = re.split(
-                    r"(.*//)(www\.?)?(.*)(today\.uci\.edu\/department\/information_computer_sciences"
+                    r"(.*)(today\.uci\.edu\/department\/information_computer_sciences"
                     + r"|\.ics\.uci\.edu|\.cs\.uci\.edu"
-                    + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", url.lower(), maxsplit=5)
-    return (mapping[split_domain[4]], split_domain[3], split_domain[5])
+                    + r"|\.informatics\.uci\.edu|\.stat\.uci\.edu)(.*)", parsed.netloc.lower(), maxsplit=3)
+    
+    #print(split_domain)
+    domain = mapping[split_domain[2]] if len(split_domain) > 1 else mapping[split_domain[0]]
+    subdomain = split_domain[1] if len(split_domain) > 1 else ""
+    rest = split_domain[3] + parsed.path + parsed.query if len(split_domain) > 1 else parsed.path + parsed.query
+
+    return (domain, subdomain, rest)
+
+# print(split_url("https://subdomain.ics.uci.edu"))
+# print(split_url("https://ics.uci.edu/%20http:/cml.ics.uci.edu/"))
+# print(split_url("https://ics.uci.edu/www.ics.uci.edu/aculty/profiles/view_faculty.php?ucinetid=nalini"))
+# print(split_url("https://duttgroup.ics.uci.edu/wp-login.php?redirect_to=https://duttgroup.ics.uci.edu/2017/11/07/majids-defense/"))
+# print(split_url("https://ics.uci.edu/community/news/press/www.ics.uci.edu/"))
