@@ -258,7 +258,7 @@ def is_valid(url):
     try:
         if not url: return False
 
-        if url.find("%5B%5D") != -1 or url.find("?share=") != -1 or url.find("?replytocom=") != -1:
+        if url.find("%5B%5D") != -1 or url.find("?share=") != -1 or url.find("?replytocom=") != -1 or (url.find("hack") != -1 and url.find("img") != -1):
             return False
 
         archive_search = re.match(r".*archive\.ics\.uci\.edu\/ml\/datasets\.php.*", url.lower())
