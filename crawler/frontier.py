@@ -63,6 +63,7 @@ class Frontier(object):
             f"Found {tbd_count} urls to be downloaded from {total_count} "
             f"total urls discovered.")
 
+        # load in the caches and max_len state
         for url, fingerprint in self.print_shelf.items():
             self.fingerprint_cache[url] = fingerprint
 
@@ -70,9 +71,6 @@ class Frontier(object):
             self.visited_cache[url] = val
 
         self.max_webpage_len = self.len_shelf["max_webpage_len"]
-        print("Loaded the following from shelve objects | max len = ", self.max_webpage_len)
-        print(self.fingerprint_cache)
-        print(self.visited_cache)
 
     def get_tbd_url(self):
         try:
@@ -99,7 +97,7 @@ class Frontier(object):
                 del self.visit_shelf[url]
                 to_delete[i] = split_url(url)
 
-            print("Inserting into DB:", to_delete)
+            # move the least visited urls into db 
             try:
                 db = Database(self.config.db_name)
                 db.connect()
@@ -120,13 +118,12 @@ class Frontier(object):
             sorted_cache = list(sorted(self.fingerprint_cache.keys(), key=lambda x: self.fingerprint_cache[x][1]))
             to_delete = sorted_cache[:self.config.cache_dump_amt]
 
-            print("Before deleting prints", len(self.fingerprint_cache))
+            # get rid of the least used fingerprints
             for i in range(len(to_delete)):
                 url = to_delete[i]
                 del self.fingerprint_cache[url]
                 del self.print_shelf[url]
             
-            print("After deleting prints", len(self.fingerprint_cache))
             for url in self.fingerprint_cache:
                 self.fingerprint_cache[url][1] = int(self.fingerprint_cache[url][1] * self.config.rank_dec)
                 self.print_shelf[url][1] = int(self.print_shelf[url][1] * self.config.rank_dec)

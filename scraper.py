@@ -12,7 +12,7 @@ def scraper(url, resp, db, url_cache, fingerprint_cache, url_shelf, print_shelf)
     url_shelf[url] = 0
     url_shelf.sync()
 
-    if resp.status >= 600: # invalid domain (this should not happen)
+    if resp.status >= 600: # not ok
         print("Status", resp.status, ":", resp.error)
         return ([], 0)
     elif resp.status >= 400: # not ok
@@ -40,17 +40,19 @@ def scraper(url, resp, db, url_cache, fingerprint_cache, url_shelf, print_shelf)
         print("Status", resp.status, ":", resp.raw_response)
         return ([], 0)
 
-    # handles the bad responses that caused EOF errors 
+    # handles the bad responses that caused exceptions in download.py
     if not resp.raw_response:
         return ([], 0)
 
-    if 'Content-Type' in resp.raw_response.headers and resp.raw_response.headers['Content-Type'].find("text") == -1: # content type of document isn't text
+    # content type of document isn't text
+    if 'Content-Type' in resp.raw_response.headers and resp.raw_response.headers['Content-Type'].find("text") == -1:
         return ([], 0)
     
     if 'Content-Length' in resp.raw_response.headers:
         content_length = int(resp.raw_response.headers['Content-Length'])
         if content_length < 1500 or content_length > 6000000: 
-            # numbers based roughly on http://www.blankwebsite.com/ for lower bound and https://www.seoptimer.com/blog/webpage-size/ for upper bound
+            # numbers based roughly on http://www.blankwebsite.com/ for lower bound 
+            # https://www.seoptimer.com/blog/webpage-size/ for upper bound
             return ([], 0)
 
     # TEXT PARSING
@@ -69,16 +71,12 @@ def scraper(url, resp, db, url_cache, fingerprint_cache, url_shelf, print_shelf)
     print_shelf[url_hash] = [fingerprint, 0]
     print_shelf.sync()
 
-    # print(links)
-
     # GET FREQUENCIES
     freqs = compute_word_frequencies(tokens_no_stop)
     db.upsert_word_counts(freqs)
     
     # RETURN NEW LINKS
     to_visit = [link for link in links if should_visit(link, db, url_cache, url_shelf)]
-    # print(t)
-    # input("Hit enter when ready: ")
     return (to_visit, page_len)
 
 def similar_page_exists(fingerprint, cache, print_shelf):
@@ -87,32 +85,11 @@ def similar_page_exists(fingerprint, cache, print_shelf):
     for url_hash in cache:
         print_list = cache[url_hash][0]
         if dup_check(print_set, print_list):
-            print("PRINT MATCH")  
             cache[url_hash][1] += 1
             print_shelf[url_hash] = cache[url_hash]
             print_shelf.sync()
             return True
 
-    return False
-
-def is_trap(url):
-    domain, subdomain, path = split_url(url)
-    if subdomain.find("archive") != -1:
-        return True
-    if subdomain.find("calendar") != -1:
-        return True
-    if path.find("calendar") != -1:
-        return True
-    if path.find("stayconnected") != -1:
-        return True
-    if path.find("hall_of_fame") != -1:
-        return True
-    if path.find("sidebyside") != -1:
-        return True
-    if path.find("replytocom") != -1:
-        return True 
-    if subdomain.find("wics") != -1 and path.find("event") != 1 and path.find("list") == -1:
-        return True
     return False
 
 def is_visited(link, db, cache, url_shelf):
@@ -181,7 +158,8 @@ def remove_stop_words(tokens):
             
 
 def get_tokens(text):
-    # tokenize on 2+ characters, must contain at least 1 letter, can contain periods & apostrophes but not at the start or end
+    # tokenize on 2+ characters, must contain at least 1 letter, 
+    # can contain periods & apostrophes but not at the start or end
     return re.findall(r"[a-z0-9]+[a-z][a-z0-9]*[\.']*[a-z0-9\.]*\b", text.lower())
 
 def compute_word_frequencies(tokens):
@@ -209,7 +187,6 @@ def extract_next_links(link, resp):
             url = urldefrag(url)[0] # remove the rest of the fragments
             urls.add(urljoin(link, url))   #if url is relative, will create absolute
             # https://docs.python.org/3/library/urllib.parse.html?highlight=urllib%20urljoin#urllib.parse.urljoin
-            # reference for above just in case because that's crazy
 
     text = soup.get_text(" ", strip = True)
     return list(urls), text 
@@ -218,6 +195,7 @@ def is_valid(url):
     try:
         if not url: return False
 
+        # various specific links want to avoid
         if "%5B%5D" in url or \
         "?share=" in url or \
         "?replytocom=" in url or \
@@ -243,6 +221,7 @@ def is_valid(url):
                         + r"|.*\.net.*|.*\.gov.*|.*\.info.*", url.lower())
         if outside_domain:
             return False
+            
         domain_match = re.match(
             r".*(\/\/)(today\.uci\.edu\/department\/information_computer_sciences\/?).*"
             + r"|.*(\.ics\.uci\.edu\/?).*|.*(\.cs\.uci\.edu\/?).*"
@@ -259,10 +238,9 @@ def is_valid(url):
             + r"|gctx|npy|gz|npz|bgz|pbtxt|model|hdf5|seq"
             + r"|bed|bw|bz2|bam|bai|fasta|mod|test"
             + r"|r|c|cpp|java|python|m|py|mat|war"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|bib|z)(\?.*)?(\"|\ )?$", parsed.path.lower() + parsed.query.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|bib|z)$", parsed.path.lower() + parsed.query.lower())
 
         return True if (domain_match and not type_match) else False
-     
 
     except TypeError as e:
         print ("TypeError for ", e)

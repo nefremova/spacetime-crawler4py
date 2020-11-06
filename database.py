@@ -104,7 +104,6 @@ class Database:
         
         c = self._conn.cursor()
         c.execute(' SELECT * FROM visited_urls ')
-        #print(c.fetchall())
 
         return c.fetchall()
     
