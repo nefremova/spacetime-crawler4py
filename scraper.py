@@ -81,40 +81,6 @@ def scraper(url, resp, db, url_cache, fingerprint_cache, url_shelf, print_shelf)
     # input("Hit enter when ready: ")
     return (to_visit, page_len)
 
-def similar_paths(url, url_cache):
-    domain1, subdomain1, path1 = split_url(url)
-    if not path1:
-        return False
-    if path1.find("?") != -1:
-        return False
-
-    for link in url_cache:
-        domain2, subdomain2, path2 = split_url(link)
-        if not path2:
-            continue
-        if domain1 != domain2 and subdomain1 != subdomain2:
-            continue
-
-        path1 = path1[(path1.rfind('/')):]
-        path2 = path2[(path2.rfind('/')):]
-
-        intersection = 0
-        smaller = path1 if len(path1) < len(path2) else path2
-        if (len(smaller)) == 0:
-            continue
-
-        for i in range(len(smaller)):
-            if path1[i] == path2[i]:
-                intersection += 1
-
-        similarity = (intersection)/(len(smaller))
-
-        if similarity > 0.75:
-            print("==========similar paths============")
-            print(url)
-            print(link)
-            return True
-
 def similar_page_exists(fingerprint, cache, print_shelf):
     print_set = set(fingerprint)
 
@@ -176,7 +142,6 @@ def create_fingerprint(words):
 
 def dup_check(prints1, prints2):
     if (len(prints1) + len(prints2)) == 0:
-        print("BOTH PRINT LISTS EMPTY")
         return False
 
     threshold = 0.75
@@ -185,11 +150,6 @@ def dup_check(prints1, prints2):
     intersection = prints1 & set2
     union = prints1 | set2
     similarity = len(intersection)/(len(union))
-
-#    if similarity > 0.50:
-#        print("==============similarity", similarity, "=======================") 
-#        print("len(prints1) = ", len(prints1))
-#        print("len(set2) = ", len(set2))
 
     return similarity > threshold
 
@@ -235,7 +195,6 @@ def compute_word_frequencies(tokens):
     return freqs 
 
 def should_visit(link, db, url_cache, url_shelf): 
-#    return is_valid(link) and not is_visited(link, db, url_cache) and not is_trap(link)
     return is_valid(link) and not is_visited(link, db, url_cache, url_shelf)
 
 def extract_next_links(link, resp):
@@ -300,7 +259,7 @@ def is_valid(url):
             + r"|gctx|npy|gz|npz|bgz|pbtxt|model|hdf5|seq"
             + r"|bed|bw|bz2|bam|bai|fasta|mod|test"
             + r"|r|c|cpp|java|python|m|py|mat|war"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|bib|z)$", parsed.path.lower() + parsed.query.lower())
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|bib|z)(\?.*)?(\"|\ )?$", parsed.path.lower() + parsed.query.lower())
 
         return True if (domain_match and not type_match) else False
      
